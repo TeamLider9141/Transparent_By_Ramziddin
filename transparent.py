@@ -7,6 +7,7 @@ import requests
 from io import BytesIO
 from PIL import Image
 from dotenv import load_dotenv
+from database import init_db, add_user, get_user_count, get_today_count, get_users_page
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -58,6 +59,8 @@ PHOTO, SIZE, LIMIT, ACTION = range(4)
 # START
 # ==========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    add_user(user.id, user.username, user.first_name)
     await update.message.reply_text(
         "👋 Salom!\n\n"
         "Bu bot Ramziddin Parpiyev tomonidan ishlab chiqarilgan.\n\n"
