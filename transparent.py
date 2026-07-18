@@ -8,12 +8,13 @@ from io import BytesIO
 from PIL import Image
 from dotenv import load_dotenv
 from database import init_db, add_user, get_user_count, get_today_count, get_users_page
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
     MessageHandler,
     ConversationHandler,
+    CallbackQueryHandler,
     ContextTypes,
     filters
 )
@@ -40,6 +41,7 @@ def _parse_admin_ids(raw: str) -> set[int]:
 
 
 ADMIN_IDS = _parse_admin_ids(os.getenv("ADMIN_IDS", ""))
+PAGE_SIZE = 20
 
 
 def is_admin(user_id: int) -> bool:
@@ -81,6 +83,54 @@ async def users_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     count = get_user_count()
     await update.message.reply_text(f"👥 Jami foydalanuvchilar: {count}")
+
+# ==========================
+# ADMIN: FOYDALANUVCHILAR RO'YXATI
+# ==========================
+def _format_user_line(row):
+    user_id, username, first_name, joined_at = row
+    uname = f"@{username}" if username else "—"
+    name = first_name or "—"
+    date = joined_at[:10] if joined_at else "—"
+    return f"ID: {user_id} | {uname} | {name} | {date}"
+
+
+def _build_userlist_page(offset):
+    rows = get_users_page(offset, PAGE_SIZE)
+    total = get_user_count()
+    text = (
+        "\n".join(_format_user_line(row) for row in rows)
+        if rows
+        else "Foydalanuvchilar topilmadi."
+    )
+
+    buttons = []
+    if offset > 0:
+        prev_offset = max(0, offset - PAGE_SIZE)
+        buttons.append(InlineKeyboardButton("⬅️ Oldinga", callback_data=f"userlist:{prev_offset}"))
+    if offset + PAGE_SIZE < total:
+        buttons.append(InlineKeyboardButton("Keyingi ➡️", callback_data=f"userlist:{offset + PAGE_SIZE}"))
+
+    markup = InlineKeyboardMarkup([buttons]) if buttons else None
+    return text, markup
+
+
+async def userlist_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("⛔ Bu buyruq faqat admin uchun.")
+        return
+    text, markup = _build_userlist_page(0)
+    await update.message.reply_text(text, reply_markup=markup)
+
+
+async def userlist_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(query.from_user.id):
+        return
+    offset = int(query.data.split(":", 1)[1])
+    text, markup = _build_userlist_page(offset)
+    await query.edit_message_text(text, reply_markup=markup)
 
 # ==========================
 # RASM QABUL QILISH (Gruppa + Private uchun yangilandi)
