@@ -73,6 +73,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # ==========================
+# ADMIN: FOYDALANUVCHILAR SONI
+# ==========================
+async def users_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("⛔ Bu buyruq faqat admin uchun.")
+        return
+    count = get_user_count()
+    await update.message.reply_text(f"👥 Jami foydalanuvchilar: {count}")
+
+# ==========================
 # RASM QABUL QILISH (Gruppa + Private uchun yangilandi)
 # ==========================
 async def get_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
