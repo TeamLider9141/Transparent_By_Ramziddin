@@ -133,6 +133,34 @@ async def userlist_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(text, reply_markup=markup)
 
 # ==========================
+# ADMIN: SETTINGS PANEL
+# ==========================
+async def settings_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("⛔ Bu buyruq faqat admin uchun.")
+        return
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📊 Statistika", callback_data="settings:stats")],
+        [InlineKeyboardButton("👥 Foydalanuvchilar ro'yxati", callback_data="settings:userlist")],
+    ])
+    await update.message.reply_text("⚙️ Admin panel", reply_markup=keyboard)
+
+
+async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(query.from_user.id):
+        return
+
+    if query.data == "settings:stats":
+        total = get_user_count()
+        today = get_today_count()
+        await query.edit_message_text(f"📊 Statistika\n\nJami: {total}\nBugun: {today}")
+    elif query.data == "settings:userlist":
+        text, markup = _build_userlist_page(0)
+        await query.edit_message_text(text, reply_markup=markup)
+
+# ==========================
 # RASM QABUL QILISH (Gruppa + Private uchun yangilandi)
 # ==========================
 async def get_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
