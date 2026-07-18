@@ -23,6 +23,11 @@ from telegram.ext import (
 load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 REMOVE_BG_API = os.getenv("REMOVE_BG_API")
+ADMIN_IDS = {int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()}
+
+
+def is_admin(user_id: int) -> bool:
+    return user_id in ADMIN_IDS
 
 # ==========================
 # PAPKALAR
