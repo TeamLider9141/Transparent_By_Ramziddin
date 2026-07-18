@@ -370,9 +370,15 @@ conv = ConversationHandler(
 # BOTNI ISHGA TUSHIRISH
 # ==========================
 def main():
+    init_db()
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("users", users_cmd))
+    app.add_handler(CommandHandler("userlist", userlist_cmd))
+    app.add_handler(CommandHandler("settings", settings_cmd))
+    app.add_handler(CallbackQueryHandler(userlist_callback, pattern=r"^userlist:"))
+    app.add_handler(CallbackQueryHandler(settings_callback, pattern=r"^settings:"))
     app.add_handler(conv)
 
     print("🤖 Bot muvaffaqiyatli ishga tushdi... Guruhlar va shaxsiy chatlar uchun tayyor!")
