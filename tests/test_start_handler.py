@@ -39,3 +39,12 @@ async def test_start_still_sends_welcome_message():
     await transparent.start(update, context)
 
     update.message.reply_text.assert_awaited_once()
+
+
+async def test_start_records_user_with_no_username():
+    update = make_update(user_id=7, username=None, first_name="Nobody")
+    context = MagicMock()
+
+    await transparent.start(update, context)
+
+    assert database.get_user_count() == 1
