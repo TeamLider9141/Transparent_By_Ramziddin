@@ -60,9 +60,24 @@ PHOTO, SIZE, LIMIT, ACTION = range(4)
 # ==========================
 # START
 # ==========================
+async def notify_admins_of_new_user(context: ContextTypes.DEFAULT_TYPE, user):
+    username = f"@{user.username}" if user.username else "—"
+    text = (
+        "🆕 Yangi foydalanuvchi!\n\n"
+        f"ID: {user.id}\n"
+        f"Username: {username}\n"
+        f"Ism: {user.first_name or '—'}"
+    )
+    for admin_id in ADMIN_IDS:
+        try:
+            await context.bot.send_message(chat_id=admin_id, text=text)
+        except Exception:
+            continue
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    add_user(user.id, user.username, user.first_name)
+    is_new_user = add_user(user.id, user.username, user.first_name)
     await update.message.reply_text(
         "👋 Salom!\n\n"
         "Bu bot Ramziddin Parpiyev tomonidan ishlab chiqarilgan.\n\n"
@@ -73,6 +88,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "✂️ Orqa fonni transparent qilish\n\n"
         "Rasm yuboring."
     )
+    if is_new_user:
+        await notify_admins_of_new_user(context, user)
 
 # ==========================
 # ADMIN: FOYDALANUVCHILAR SONI

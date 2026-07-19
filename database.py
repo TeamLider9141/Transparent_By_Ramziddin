@@ -29,12 +29,13 @@ def init_db():
 def add_user(user_id, username, first_name):
     conn = _connect()
     try:
-        conn.execute(
+        cursor = conn.execute(
             "INSERT OR IGNORE INTO users (user_id, username, first_name, joined_at) "
             "VALUES (?, ?, ?, ?)",
             (user_id, username, first_name, datetime.now(timezone.utc).isoformat()),
         )
         conn.commit()
+        return cursor.rowcount > 0
     finally:
         conn.close()
 

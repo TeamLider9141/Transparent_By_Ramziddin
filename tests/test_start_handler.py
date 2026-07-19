@@ -48,3 +48,48 @@ async def test_start_records_user_with_no_username():
     await transparent.start(update, context)
 
     assert database.get_user_count() == 1
+
+
+async def test_start_notifies_all_admins_when_new_user(monkeypatch):
+    monkeypatch.setattr(transparent, "ADMIN_IDS", {111, 222})
+    update = make_update(user_id=42, username="bob", first_name="Bob")
+    context = MagicMock()
+    context.bot.send_message = AsyncMock()
+
+    await transparent.start(update, context)
+
+    assert context.bot.send_message.await_count == 2
+    notified_chat_ids = {
+        call.kwargs["chat_id"] for call in context.bot.send_message.await_args_list
+    }
+    assert notified_chat_ids == {111, 222}
+
+
+async def test_start_does_not_notify_admins_for_returning_user(monkeypatch):
+    monkeypatch.setattr(transparent, "ADMIN_IDS", {111})
+    update = make_update(user_id=42, username="bob", first_name="Bob")
+    context = MagicMock()
+    context.bot.send_message = AsyncMock()
+
+    await transparent.start(update, context)
+    context.bot.send_message.reset_mock()
+    await transparent.start(update, context)
+
+    context.bot.send_message.assert_not_awaited()
+
+
+async def test_start_notifies_remaining_admin_when_one_send_fails(monkeypatch):
+    monkeypatch.setattr(transparent, "ADMIN_IDS", {111, 222})
+    update = make_update(user_id=42, username="bob", first_name="Bob")
+    context = MagicMock()
+    context.bot.send_message = AsyncMock(
+        side_effect=[Exception("bot blocked"), None]
+    )
+
+    await transparent.start(update, context)
+
+    assert context.bot.send_message.await_count == 2
+    notified_chat_ids = {
+        call.kwargs["chat_id"] for call in context.bot.send_message.await_args_list
+    }
+    assert notified_chat_ids == {111, 222}

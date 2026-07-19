@@ -28,6 +28,15 @@ def test_add_user_is_idempotent_per_user_id():
     assert database.get_user_count() == 1
 
 
+def test_add_user_returns_true_when_new_user_inserted():
+    assert database.add_user(1, "alice", "Alice") is True
+
+
+def test_add_user_returns_false_when_user_already_exists():
+    database.add_user(1, "alice", "Alice")
+    assert database.add_user(1, "alice", "Alice") is False
+
+
 def test_get_today_count_counts_only_todays_users():
     database.add_user(1, "alice", "Alice")
     assert database.get_today_count() == 1
