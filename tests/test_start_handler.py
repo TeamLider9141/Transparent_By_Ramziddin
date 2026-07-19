@@ -78,6 +78,32 @@ async def test_start_does_not_notify_admins_for_returning_user(monkeypatch):
     context.bot.send_message.assert_not_awaited()
 
 
+async def test_start_sends_admin_menu_keyboard_to_admin(monkeypatch):
+    monkeypatch.setattr(transparent, "ADMIN_IDS", {1})
+    update = make_update(user_id=1, username="alice", first_name="Alice")
+    context = MagicMock()
+
+    await transparent.start(update, context)
+
+    _, kwargs = update.message.reply_text.call_args
+    markup = kwargs["reply_markup"]
+    labels = [button.text for row in markup.keyboard for button in row]
+    assert "👥 Foydalanuvchilar soni" in labels
+    assert "📋 Foydalanuvchilar ro'yxati" in labels
+    assert "⚙️ Sozlamalar" in labels
+
+
+async def test_start_sends_no_keyboard_to_non_admin(monkeypatch):
+    monkeypatch.setattr(transparent, "ADMIN_IDS", {999})
+    update = make_update(user_id=1, username="alice", first_name="Alice")
+    context = MagicMock()
+
+    await transparent.start(update, context)
+
+    _, kwargs = update.message.reply_text.call_args
+    assert kwargs.get("reply_markup") is None
+
+
 async def test_start_notifies_remaining_admin_when_one_send_fails(monkeypatch):
     monkeypatch.setattr(transparent, "ADMIN_IDS", {111, 222})
     update = make_update(user_id=42, username="bob", first_name="Bob")
