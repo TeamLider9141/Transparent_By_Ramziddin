@@ -110,8 +110,8 @@ async def test_admin_keyboard_is_a_2x2_grid_including_start():
     labels = [[button.text for button in row] for row in transparent.ADMIN_KEYBOARD.keyboard]
 
     assert labels == [
-        ["🏠 /start", "👥 Foydalanuvchilar soni"],
-        ["📋 Foydalanuvchilar ro'yxati", "⚙️ Sozlamalar"],
+        ["👥 Foydalanuvchilar soni", "📋 Foydalanuvchilar ro'yxati"],
+        ["🏠 /start", "⚙️ Sozlamalar"],
     ]
 
 

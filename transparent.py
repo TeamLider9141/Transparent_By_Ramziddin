@@ -72,8 +72,8 @@ ADMIN_MENU_SETTINGS = "⚙️ Sozlamalar"
 
 ADMIN_KEYBOARD = ReplyKeyboardMarkup(
     [
-        [ADMIN_MENU_START, ADMIN_MENU_USERS],
-        [ADMIN_MENU_USERLIST, ADMIN_MENU_SETTINGS],
+        [ADMIN_MENU_USERS, ADMIN_MENU_USERLIST],
+        [ADMIN_MENU_START, ADMIN_MENU_SETTINGS],
     ],
     resize_keyboard=True,
 )
@@ -441,7 +441,8 @@ conv = ConversationHandler(
         CommandHandler("cancel", cancel)
     ],
     per_user=True,          # Har bir foydalanuvchi uchun alohida holat
-    per_chat=False
+    per_chat=False,
+    allow_reentry=True,     # Yangi rasm yuborilsa, eski (tugallanmagan) holatni yangilaydi
 )
 
 # ==========================
