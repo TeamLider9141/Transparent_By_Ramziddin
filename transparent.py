@@ -274,6 +274,19 @@ async def action_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+async def cancel_to_action_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if "photo" not in context.user_data:
+        await query.edit_message_text("Iltimos, rasmni qaytadan yuboring.")
+        return ConversationHandler.END
+    await query.edit_message_text(
+        "Rasm qabul qilindi ✅\n\nNima qilamiz?",
+        reply_markup=ACTION_KEYBOARD,
+    )
+    return ACTION
+
+
 # ==========================
 # REMOVE.BG FUNKSIYA
 # ==========================
@@ -306,17 +319,19 @@ async def resize_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if not re.match(r"^\d+x\d+$", text):
         await update.message.reply_text(
-            "❌ Noto'g'ri format.\n\nMisol:\n512x512"
+            "❌ Noto'g'ri format.\n\nMisol:\n512x512",
+            reply_markup=CANCEL_KEYBOARD,
         )
         return SIZE
-    
+
     width, height = map(int, text.split("x"))
     context.user_data["width"] = width
     context.user_data["height"] = height
-    
+
     await update.message.reply_text(
         "Endi maksimal hajmini KB da yozing.\n\n"
-        "Misol:\n512"
+        "Misol:\n512",
+        reply_markup=CANCEL_KEYBOARD,
     )
     return LIMIT
 
@@ -327,7 +342,10 @@ async def resize_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def resize_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if not text.isdigit():
-        await update.message.reply_text("Faqat son yozing.\nMisol: 512")
+        await update.message.reply_text(
+            "Faqat son yozing.\nMisol: 512",
+            reply_markup=CANCEL_KEYBOARD,
+        )
         return LIMIT
     
     max_kb = int(text)
@@ -396,12 +414,14 @@ conv = ConversationHandler(
             )
         ],
         SIZE: [
+            CallbackQueryHandler(cancel_to_action_selection, pattern=r"^flow:cancel$"),
             MessageHandler(
                 filters.TEXT & ~filters.COMMAND & (filters.ChatType.PRIVATE | filters.ChatType.GROUPS),
                 resize_size
             )
         ],
         LIMIT: [
+            CallbackQueryHandler(cancel_to_action_selection, pattern=r"^flow:cancel$"),
             MessageHandler(
                 filters.TEXT & ~filters.COMMAND & (filters.ChatType.PRIVATE | filters.ChatType.GROUPS),
                 resize_limit
