@@ -88,8 +88,7 @@ async def test_start_sends_admin_menu_keyboard_to_admin(monkeypatch):
     _, kwargs = update.message.reply_text.call_args
     markup = kwargs["reply_markup"]
     labels = [button.text for row in markup.keyboard for button in row]
-    assert "👥 Foydalanuvchilar soni" in labels
-    assert "📋 Foydalanuvchilar ro'yxati" in labels
+    assert "🏠 /start" in labels
     assert "⚙️ Sozlamalar" in labels
 
 
@@ -106,13 +105,10 @@ async def test_start_sends_start_button_keyboard_to_non_admin(monkeypatch):
     assert labels == ["🏠 /start"]
 
 
-async def test_admin_keyboard_is_a_2x2_grid_including_start():
+async def test_admin_keyboard_has_only_start_and_settings():
     labels = [[button.text for button in row] for row in transparent.ADMIN_KEYBOARD.keyboard]
 
-    assert labels == [
-        ["👥 Foydalanuvchilar soni", "📋 Foydalanuvchilar ro'yxati"],
-        ["🏠 /start", "⚙️ Sozlamalar"],
-    ]
+    assert labels == [["🏠 /start", "⚙️ Sozlamalar"]]
 
 
 async def test_start_notifies_remaining_admin_when_one_send_fails(monkeypatch):
