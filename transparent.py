@@ -65,12 +65,21 @@ PHOTO, SIZE, LIMIT, ACTION = range(4)
 # ==========================
 # START
 # ==========================
+ADMIN_MENU_START = "🏠 /start"
 ADMIN_MENU_USERS = "👥 Foydalanuvchilar soni"
 ADMIN_MENU_USERLIST = "📋 Foydalanuvchilar ro'yxati"
 ADMIN_MENU_SETTINGS = "⚙️ Sozlamalar"
 
 ADMIN_KEYBOARD = ReplyKeyboardMarkup(
-    [[ADMIN_MENU_USERS], [ADMIN_MENU_USERLIST], [ADMIN_MENU_SETTINGS]],
+    [
+        [ADMIN_MENU_START, ADMIN_MENU_USERS],
+        [ADMIN_MENU_USERLIST, ADMIN_MENU_SETTINGS],
+    ],
+    resize_keyboard=True,
+)
+
+USER_KEYBOARD = ReplyKeyboardMarkup(
+    [[ADMIN_MENU_START]],
     resize_keyboard=True,
 )
 
@@ -93,7 +102,7 @@ async def notify_admins_of_new_user(context: ContextTypes.DEFAULT_TYPE, user):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     is_new_user = add_user(user.id, user.username, user.first_name)
-    keyboard = ADMIN_KEYBOARD if is_admin(user.id) else None
+    keyboard = ADMIN_KEYBOARD if is_admin(user.id) else USER_KEYBOARD
     await update.message.reply_text(
         "👋 Salom!\n\n"
         "Bu bot Ramziddin Parpiyev tomonidan ishlab chiqarilgan.\n\n"
@@ -448,6 +457,7 @@ def main():
     app.add_handler(CommandHandler("settings", settings_cmd))
     app.add_handler(CallbackQueryHandler(userlist_callback, pattern=r"^userlist:"))
     app.add_handler(CallbackQueryHandler(settings_callback, pattern=r"^settings:"))
+    app.add_handler(MessageHandler(filters.Text([ADMIN_MENU_START]), start))
     app.add_handler(MessageHandler(filters.Text([ADMIN_MENU_USERS]), users_cmd))
     app.add_handler(MessageHandler(filters.Text([ADMIN_MENU_USERLIST]), userlist_cmd))
     app.add_handler(MessageHandler(filters.Text([ADMIN_MENU_SETTINGS]), settings_cmd))

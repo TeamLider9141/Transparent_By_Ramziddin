@@ -93,7 +93,7 @@ async def test_start_sends_admin_menu_keyboard_to_admin(monkeypatch):
     assert "⚙️ Sozlamalar" in labels
 
 
-async def test_start_sends_no_keyboard_to_non_admin(monkeypatch):
+async def test_start_sends_start_button_keyboard_to_non_admin(monkeypatch):
     monkeypatch.setattr(transparent, "ADMIN_IDS", {999})
     update = make_update(user_id=1, username="alice", first_name="Alice")
     context = MagicMock()
@@ -101,7 +101,18 @@ async def test_start_sends_no_keyboard_to_non_admin(monkeypatch):
     await transparent.start(update, context)
 
     _, kwargs = update.message.reply_text.call_args
-    assert kwargs.get("reply_markup") is None
+    markup = kwargs["reply_markup"]
+    labels = [button.text for row in markup.keyboard for button in row]
+    assert labels == ["🏠 /start"]
+
+
+async def test_admin_keyboard_is_a_2x2_grid_including_start():
+    labels = [[button.text for button in row] for row in transparent.ADMIN_KEYBOARD.keyboard]
+
+    assert labels == [
+        ["🏠 /start", "👥 Foydalanuvchilar soni"],
+        ["📋 Foydalanuvchilar ro'yxati", "⚙️ Sozlamalar"],
+    ]
 
 
 async def test_start_notifies_remaining_admin_when_one_send_fails(monkeypatch):
