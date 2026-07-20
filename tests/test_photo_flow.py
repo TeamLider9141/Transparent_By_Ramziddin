@@ -92,6 +92,9 @@ async def test_action_callback_both_asks_for_size():
 
     assert state == transparent.SIZE
     assert context.user_data["mode"] == "both"
+    _, kwargs = update.callback_query.edit_message_text.call_args
+    markup = kwargs["reply_markup"]
+    assert markup.inline_keyboard[0][0].callback_data == "flow:cancel"
 
 
 async def test_action_callback_transparent_processes_and_sends_document(monkeypatch, tmp_path):

@@ -251,21 +251,26 @@ async def action_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return SIZE
 
-    # choice == "action:transparent"
-    await query.edit_message_text("⏳ Fon olib tashlanmoqda...")
-    input_file = context.user_data["photo"]
-    output_file = f"photos/{query.from_user.id}_transparent.png"
+    if choice == "action:transparent":
+        await query.edit_message_text("⏳ Fon olib tashlanmoqda...")
+        input_file = context.user_data["photo"]
+        output_file = f"photos/{query.from_user.id}_transparent.png"
 
-    result = remove_background(input_file, output_file)
+        result = remove_background(input_file, output_file)
 
-    if result:
-        await query.message.reply_document(
-            document=open(output_file, "rb"),
-            filename="transparent.png",
-            caption="✅ Fon transparent qilindi.",
-        )
-    else:
-        await query.message.reply_text("❌ Fon olib tashlashda xatolik yuz berdi.")
+        if result:
+            await query.message.reply_document(
+                document=open(output_file, "rb"),
+                filename="transparent.png",
+                caption="✅ Fon transparent qilindi.",
+            )
+        else:
+            await query.message.reply_text("❌ Fon olib tashlashda xatolik yuz berdi.")
+        return ConversationHandler.END
+
+    # Unrecognized callback_data — should be unreachable given the handler's
+    # pattern, but fail loudly instead of silently running background removal.
+    await query.edit_message_text("❌ Noma'lum tanlov. Iltimos, /start bilan qaytadan boshlang.")
     return ConversationHandler.END
 
 
@@ -385,7 +390,10 @@ conv = ConversationHandler(
     ],
     states={
         ACTION: [
-            CallbackQueryHandler(action_callback, pattern=r"^(action:|flow:cancel)")
+            CallbackQueryHandler(
+                action_callback,
+                pattern=r"^(action:resize|action:transparent|action:both|flow:cancel)$",
+            )
         ],
         SIZE: [
             MessageHandler(
