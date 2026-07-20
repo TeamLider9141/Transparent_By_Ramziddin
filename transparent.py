@@ -197,66 +197,76 @@ async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==========================
 # RASM QABUL QILISH (Gruppa + Private uchun yangilandi)
 # ==========================
+ACTION_KEYBOARD = InlineKeyboardMarkup([
+    [InlineKeyboardButton("1️⃣ O'lchamni o'zgartirish", callback_data="action:resize")],
+    [InlineKeyboardButton("2️⃣ Fonni transparent qilish", callback_data="action:transparent")],
+    [InlineKeyboardButton("3️⃣ Ikkalasini ham (Fon + O'lcham)", callback_data="action:both")],
+    [InlineKeyboardButton("❌ Bekor qilish", callback_data="flow:cancel")],
+])
+
+CANCEL_KEYBOARD = InlineKeyboardMarkup([
+    [InlineKeyboardButton("❌ Bekor qilish", callback_data="flow:cancel")],
+])
+
+
 async def get_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file = await update.message.photo[-1].get_file()
     user_id = update.effective_user.id
     path = f"photos/{user_id}.jpg"
-    
+
     await file.download_to_drive(path)
     context.user_data["photo"] = path
     context.user_data["chat_id"] = update.effective_chat.id  # Guruh yoki private chatni saqlash
 
     await update.message.reply_text(
-        "Rasm qabul qilindi ✅\n\n"
-        "Nima qilamiz?\n\n"
-        "1 - O'lchamni o'zgartirish\n"
-        "2 - Fonni transparent qilish\n"
-        "3 - Ikkalasini ham (Fon + O'lcham)\n\n"
-        "1, 2 yoki 3 yozing."
+        "Rasm qabul qilindi ✅\n\nNima qilamiz?",
+        reply_markup=ACTION_KEYBOARD,
     )
     return ACTION
 # ==========================
 # ACTION TANLASH
 # ==========================
-async def action(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip()
-    
-    if text == "1":
-        await update.message.reply_text(
-            "O'lchamni kiriting (width x height).\n\n"
-            "Misol:\n512x512"
-        )
-        context.user_data["mode"] = "resize"
-        return SIZE
-        
-    elif text == "2":
-        await update.message.reply_text("⏳ Fon olib tashlanmoqda...")
-        input_file = context.user_data["photo"]
-        output_file = f"photos/{update.effective_user.id}_transparent.png"
-        
-        result = remove_background(input_file, output_file)
-        
-        if result:
-            await update.message.reply_document(
-                document=open(output_file, "rb"),
-                filename="transparent.png",
-                caption="✅ Fon transparent qilindi."
-            )
-        else:
-            await update.message.reply_text("❌ Fon olib tashlashda xatolik yuz berdi.")
+async def action_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    choice = query.data
+
+    if choice == "flow:cancel":
+        await query.edit_message_text("❌ Jarayon bekor qilindi. Yangi rasm yuboring.")
         return ConversationHandler.END
-        
-    elif text == "3":
-        await update.message.reply_text(
-            "O'lchamni kiriting (width x height).\n\n"
-            "Misol:\n512x512"
+
+    if choice == "action:resize":
+        context.user_data["mode"] = "resize"
+        await query.edit_message_text(
+            "O'lchamni kiriting (width x height).\n\nMisol:\n512x512",
+            reply_markup=CANCEL_KEYBOARD,
         )
-        context.user_data["mode"] = "both"
         return SIZE
-        
+
+    if choice == "action:both":
+        context.user_data["mode"] = "both"
+        await query.edit_message_text(
+            "O'lchamni kiriting (width x height).\n\nMisol:\n512x512",
+            reply_markup=CANCEL_KEYBOARD,
+        )
+        return SIZE
+
+    # choice == "action:transparent"
+    await query.edit_message_text("⏳ Fon olib tashlanmoqda...")
+    input_file = context.user_data["photo"]
+    output_file = f"photos/{query.from_user.id}_transparent.png"
+
+    result = remove_background(input_file, output_file)
+
+    if result:
+        await query.message.reply_document(
+            document=open(output_file, "rb"),
+            filename="transparent.png",
+            caption="✅ Fon transparent qilindi.",
+        )
     else:
-        await update.message.reply_text("Faqat 1, 2 yoki 3 raqamini yozing.")
-        return ACTION
+        await query.message.reply_text("❌ Fon olib tashlashda xatolik yuz berdi.")
+    return ConversationHandler.END
 
 
 # ==========================
@@ -375,10 +385,7 @@ conv = ConversationHandler(
     ],
     states={
         ACTION: [
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND & (filters.ChatType.PRIVATE | filters.ChatType.GROUPS),
-                action
-            )
+            CallbackQueryHandler(action_callback, pattern=r"^(action:|flow:cancel)")
         ],
         SIZE: [
             MessageHandler(
