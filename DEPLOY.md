@@ -30,6 +30,8 @@ ADMIN_IDS=123456789,987654321
 
 (`.env.example` faylga qarang — qaysi o'zgaruvchilar kerakligi shu yerda ko'rsatilgan.)
 
+> **Muhim:** Adminlar `REMOVE_BG_API` kalitini bot ichidan (`/settings` → "🔑 API key almashtirish") almashtira oladi — bot uni shu `.env` faylga yozadi va restartsiz darhol qo'llaydi. Shuning uchun `.env` fayl service user (`ubuntu`) tomonidan **yoziladigan** bo'lishi shart. systemd unitiga `ProtectHome=`, `ProtectSystem=strict`, yoki loyiha papkasini qamrab oluvchi `ReadOnlyPaths=` **qo'shmang** — aks holda kalit yozib bo'lmaydi (bot ishlab turadi, lekin almashtirish xato beradi).
+
 ## 3. systemd service yaratish
 
 ```bash
