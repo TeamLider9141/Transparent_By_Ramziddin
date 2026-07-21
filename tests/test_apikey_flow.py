@@ -73,6 +73,27 @@ async def test_apikey_receive_deletes_message(monkeypatch):
     update.message.delete.assert_awaited_once()
 
 
+async def test_apikey_receive_deletes_message_before_validation(monkeypatch):
+    # Security: the plaintext key message must be removed from chat history
+    # BEFORE the ~15s network validation, not after — otherwise it lingers
+    # visible during the round-trip.
+    order = []
+    update = make_text_update(user_id=1, text="somekey12345")
+    update.message.delete = AsyncMock(side_effect=lambda: order.append("delete"))
+
+    def validate(_key):
+        order.append("validate")
+        return "valid"
+
+    monkeypatch.setattr(transparent, "_validate_remove_bg_key", validate)
+    context = MagicMock()
+    context.user_data = {}
+
+    await transparent.apikey_receive(update, context)
+
+    assert order == ["delete", "validate"]
+
+
 async def test_apikey_receive_valid_stores_pending_and_confirms(monkeypatch):
     monkeypatch.setattr(transparent, "_validate_remove_bg_key", lambda k: "valid")
     update = make_text_update(user_id=1, text="uwfYNenrqyEbw6VBCw6wF5Ep")
