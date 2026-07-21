@@ -125,3 +125,22 @@ def test_write_env_ignores_commented_and_whitespace_lines(tmp_path):
     assert "REMOVE_BG_API=newkey" in text
     assert "spacedkey" not in text
     assert "OTHER=x" in text
+
+
+def test_write_env_preserves_original_on_write_failure(tmp_path, monkeypatch):
+    env = tmp_path / ".env"
+    original = "TELEGRAM_TOKEN=abc\nREMOVE_BG_API=oldkey\n"
+    env.write_text(original)
+
+    def boom(*a, **k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(transparent.os, "replace", boom)
+
+    with pytest.raises(OSError):
+        transparent._write_env_value("REMOVE_BG_API", "newkey", path=str(env))
+
+    # original .env is untouched (atomic write never truncated it)
+    assert env.read_text() == original
+    # no orphaned temp files left behind in the directory
+    assert [p.name for p in tmp_path.iterdir()] == [".env"]
