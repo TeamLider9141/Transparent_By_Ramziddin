@@ -3,6 +3,7 @@
 # ==========================
 import os
 import re
+import tempfile
 import requests
 from io import BytesIO
 from PIL import Image
@@ -30,6 +31,7 @@ from telegram.ext import (
 load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 REMOVE_BG_API = os.getenv("REMOVE_BG_API")
+ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 
 
 def _parse_admin_ids(raw: str) -> set[int]:
@@ -289,6 +291,66 @@ async def cancel_to_action_selection(update: Update, context: ContextTypes.DEFAU
         reply_markup=ACTION_KEYBOARD,
     )
     return ACTION
+
+
+def _mask_api_key(key):
+    if len(key) > 8:
+        return f"{key[:4]}...{key[-4:]}"
+    return "****"
+
+
+def _validate_remove_bg_key(key):
+    try:
+        resp = requests.get(
+            "https://api.remove.bg/v1.0/account",
+            headers={"X-Api-Key": key},
+            timeout=15,
+        )
+    except requests.RequestException:
+        return "error"
+    if resp.status_code == 200:
+        return "valid"
+    if resp.status_code in (401, 403):
+        return "invalid"
+    return "error"
+
+
+def _write_env_value(key, value, path=ENV_PATH):
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+    else:
+        lines = []
+
+    new_line = f"{key}={value}\n"
+    replaced = False
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        existing_key = line.split("=", 1)[0].strip()
+        if existing_key == key:
+            lines[i] = new_line
+            replaced = True
+            break
+
+    if not replaced:
+        if lines and not lines[-1].endswith("\n"):
+            lines[-1] = lines[-1] + "\n"
+        lines.append(new_line)
+
+    dir_name = os.path.dirname(os.path.abspath(path)) or "."
+    fd, tmp_path = tempfile.mkstemp(dir=dir_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.writelines(lines)
+        os.replace(tmp_path, path)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
 
 
 # ==========================
