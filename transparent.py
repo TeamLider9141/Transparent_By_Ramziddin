@@ -63,6 +63,7 @@ os.makedirs("photos", exist_ok=True)
 # HOLATLAR
 # ==========================
 PHOTO, SIZE, LIMIT, ACTION = range(4)
+AWAIT_API_KEY, CONFIRM_API_KEY = range(4, 6)
 
 # ==========================
 # START
@@ -182,6 +183,7 @@ async def settings_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("📊 Statistika", callback_data="settings:stats")],
         [InlineKeyboardButton("👥 Foydalanuvchilar ro'yxati", callback_data="settings:userlist")],
+        [InlineKeyboardButton("🔑 API key almashtirish", callback_data="settings:apikey")],
     ])
     await update.message.reply_text("⚙️ Admin panel", reply_markup=keyboard)
 
@@ -199,6 +201,99 @@ async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "settings:userlist":
         text, markup = _build_userlist_page(0)
         await query.edit_message_text(text, reply_markup=markup)
+
+
+# ==========================
+# ADMIN: API KEY ALMASHTIRISH
+# ==========================
+async def apikey_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(query.from_user.id):
+        return ConversationHandler.END
+    await query.edit_message_text(
+        "🔑 Yangi remove.bg API kalitini yuboring.\n\n"
+        "Bekor qilish uchun /cancel yozing."
+    )
+    return AWAIT_API_KEY
+
+
+async def apikey_receive(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    key = update.message.text.strip()
+    # Xavfsizlik: kalit yozilgan xabarni chatdan o'chir
+    try:
+        await update.message.delete()
+    except Exception:
+        pass
+
+    if not key or " " in key:
+        await update.message.reply_text(
+            "❌ Kalit bo'sh yoki noto'g'ri. Qaytadan yuboring."
+        )
+        return AWAIT_API_KEY
+
+    status = _validate_remove_bg_key(key)
+    if status == "error":
+        await update.message.reply_text(
+            "⚠️ remove.bg bilan bog'lanib bo'lmadi. Qaytadan yuboring."
+        )
+        return AWAIT_API_KEY
+    if status == "invalid":
+        await update.message.reply_text(
+            "❌ Kalit yaroqsiz. Boshqa kalit yuboring."
+        )
+        return AWAIT_API_KEY
+
+    context.user_data["pending_api_key"] = key
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Saqlash", callback_data="apikey:save"),
+            InlineKeyboardButton("❌ Bekor", callback_data="apikey:cancel"),
+        ],
+    ])
+    await update.message.reply_text(
+        f"✅ Kalit yaroqli: {_mask_api_key(key)}\n\nSaqlaymizmi?",
+        reply_markup=keyboard,
+    )
+    return CONFIRM_API_KEY
+
+
+async def apikey_save(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(query.from_user.id):
+        return ConversationHandler.END
+
+    key = context.user_data.pop("pending_api_key", None)
+    if not key:
+        await query.edit_message_text("❌ Kalit topilmadi. Qaytadan boshlang.")
+        return ConversationHandler.END
+
+    global REMOVE_BG_API
+    try:
+        _write_env_value("REMOVE_BG_API", key)
+    except Exception:
+        await query.edit_message_text(
+            "❌ .env faylga yozishda xatolik. Kalit saqlanmadi."
+        )
+        return ConversationHandler.END
+
+    REMOVE_BG_API = key
+    await query.edit_message_text(
+        "✅ Yangi API kalit saqlandi va darhol faollashtirildi (restartsiz)."
+    )
+    return ConversationHandler.END
+
+
+async def apikey_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data.pop("pending_api_key", None)
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text("❌ Bekor qilindi.")
+    else:
+        await update.message.reply_text("❌ Bekor qilindi.")
+    return ConversationHandler.END
+
 
 # ==========================
 # RASM QABUL QILISH (Gruppa + Private uchun yangilandi)
@@ -502,6 +597,28 @@ conv = ConversationHandler(
     allow_reentry=True,     # Yangi rasm yuborilsa, eski (tugallanmagan) holatni yangilaydi
 )
 
+apikey_conv = ConversationHandler(
+    entry_points=[CallbackQueryHandler(apikey_start, pattern=r"^settings:apikey$")],
+    states={
+        AWAIT_API_KEY: [
+            CallbackQueryHandler(apikey_cancel, pattern=r"^apikey:cancel$"),
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND
+                & ~filters.Text([ADMIN_MENU_START, ADMIN_MENU_SETTINGS]),
+                apikey_receive,
+            ),
+        ],
+        CONFIRM_API_KEY: [
+            CallbackQueryHandler(apikey_save, pattern=r"^apikey:save$"),
+            CallbackQueryHandler(apikey_cancel, pattern=r"^apikey:cancel$"),
+        ],
+    },
+    fallbacks=[CommandHandler("cancel", apikey_cancel)],
+    per_user=True,
+    per_chat=False,
+    allow_reentry=True,
+)
+
 # ==========================
 # BOTNI ISHGA TUSHIRISH
 # ==========================
@@ -514,6 +631,7 @@ def main():
     app.add_handler(CommandHandler("userlist", userlist_cmd))
     app.add_handler(CommandHandler("settings", settings_cmd))
     app.add_handler(CallbackQueryHandler(userlist_callback, pattern=r"^userlist:"))
+    app.add_handler(apikey_conv)
     app.add_handler(CallbackQueryHandler(settings_callback, pattern=r"^settings:"))
     app.add_handler(MessageHandler(filters.Text([ADMIN_MENU_START]), start))
     app.add_handler(MessageHandler(filters.Text([ADMIN_MENU_SETTINGS]), settings_cmd))
